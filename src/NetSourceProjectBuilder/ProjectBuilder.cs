@@ -47,12 +47,12 @@ namespace NetSourceProjectBuilder
 
         public void BuildProject(string baseDirectory, string targetDirectory)
         {
-            int count = 0;
-            var topLevel = "";
-            var topLevelTotal = 0;
+            var count = 0;
+            const string topLevel = "Net40";
 
-            StringBuilder projectFileBuilder = null;
-            string projectDirectory = null;
+            var projectFileBuilder = new StringBuilder(projectTemplate);
+            projectFileBuilder.Replace("{{projectname}}", topLevel);
+            var projectDirectory = Path.Combine(targetDirectory, topLevel);
 
             foreach (var sourceFile in GetSourceFiles(new DirectoryInfo(baseDirectory)))
             {
@@ -62,53 +62,27 @@ namespace NetSourceProjectBuilder
                 var pathEnd = pathComponents.Length - 1;
                 var fileName = pathComponents[pathEnd];
 
-                var pathStart = 0;
-                for (var i = 0; i < pathComponents.Length; i++)
+                var namespacePath = GetNamespace(sourceFile).Replace('.', '\\');
+                var newRelativePath = Path.Combine(namespacePath, fileName);
+                var newFilePath = Path.Combine(projectDirectory, newRelativePath);
+
+                if(!Directory.Exists(Path.GetDirectoryName(newFilePath)))
                 {
-                    if (pathComponents[i] == "src" || pathComponents[i] == "Source")
-                    {
-                        pathStart = i + 1;
-                    }
+                    Directory.CreateDirectory(Path.GetDirectoryName(newFilePath));
                 }
 
-                if (pathComponents[pathStart] != topLevel)
-                {
-                    Console.WriteLine("{0,5} {1}", topLevelTotal, topLevel);
-                    if (projectFileBuilder != null)
-                    {
-                        projectFileBuilder.Append(endProjectTemplate);
-                        if (!Directory.Exists(projectDirectory))
-                        {
-                            Directory.CreateDirectory(projectDirectory);
-                        }
-                        var projectFilePath = Path.Combine(projectDirectory, topLevel + ".csproj");
-                        File.WriteAllText(projectFilePath, projectFileBuilder.ToString());
-                    }
-
-                    topLevel = pathComponents[pathStart];
-                    topLevelTotal = 0;
-
-                    projectFileBuilder = new StringBuilder(projectTemplate);
-                    projectFileBuilder.Replace("{{projectname}}", topLevel);
-                    projectDirectory = Path.Combine(targetDirectory, topLevel);
-                }
-                topLevelTotal++;
-
-                if (projectFileBuilder != null)
-                {
-                    var namespacePath = GetNamespace(sourceFile).Replace('.', '\\');
-                    var newRelativePath = Path.Combine(namespacePath, fileName);
-                    var newFilePath = Path.Combine(projectDirectory, newRelativePath);
-
-                    if(!Directory.Exists(Path.GetDirectoryName(newFilePath)))
-                    {
-                        Directory.CreateDirectory(Path.GetDirectoryName(newFilePath));
-                    }
-
-                    File.Copy(sourceFile, newFilePath, true);
-                    projectFileBuilder.AppendLine(string.Format("    <Compile Include=\"{0}\" />", newRelativePath));
-                }
+                File.Copy(sourceFile, newFilePath, true);
+                projectFileBuilder.AppendLine(string.Format("    <Compile Include=\"{0}\" />", newRelativePath));
             }
+
+            projectFileBuilder.Append(endProjectTemplate);
+            if (!Directory.Exists(projectDirectory))
+            {
+                Directory.CreateDirectory(projectDirectory);
+            }
+            var projectFilePath = Path.Combine(projectDirectory, topLevel + ".csproj");
+            File.WriteAllText(projectFilePath, projectFileBuilder.ToString());
+
             Console.Out.WriteLine("Completed");
             Console.Out.WriteLine("Number of files processed: {0}", count);
         }
