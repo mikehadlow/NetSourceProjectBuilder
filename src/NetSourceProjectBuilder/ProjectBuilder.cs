@@ -71,7 +71,7 @@ namespace NetSourceProjectBuilder
                     Directory.CreateDirectory(Path.GetDirectoryName(newFilePath));
                 }
 
-                File.Copy(sourceFile, newFilePath, true);
+                CopyToNewLocation(sourceFile, newFilePath);
                 projectFileBuilder.AppendLine(string.Format("    <Compile Include=\"{0}\" />", newRelativePath));
             }
 
@@ -86,6 +86,37 @@ namespace NetSourceProjectBuilder
             Console.Out.WriteLine("Completed");
             Console.Out.WriteLine("Number of files processed: {0}", count);
         }
+
+
+        public void TestCopy()
+        {
+            const string oldFile = @"C:\Source\Array.cs";
+            const string newFile = @"C:\Source\Array_new.cs";
+
+            CopyToNewLocation(oldFile, newFile);
+        }
+
+        private static void CopyToNewLocation(string sourceFile, string newFilePath)
+        {
+            using(var inputStream = new FileStream(sourceFile, FileMode.Open, FileAccess.Read))
+            using(var reader = new StreamReader(inputStream))
+            using(var outputStream = new FileStream(newFilePath, FileMode.Create, FileAccess.Write))
+            using(var writer = new StreamWriter(outputStream))
+            {
+                string line = null;
+                while(!Eof(line = reader.ReadLine()))
+                {
+                    writer.WriteLine(line);
+                } 
+            }
+        }
+
+        private static bool Eof(string line)
+        {
+            return line == null || line.Trim().StartsWith(eofNotification);
+        }
+
+        private const string eofNotification = @"// File provided for Reference Use Only by Microsoft Corporation";
 
         private const string projectTemplate =
             @"<?xml version=""1.0"" encoding=""utf-8""?>
